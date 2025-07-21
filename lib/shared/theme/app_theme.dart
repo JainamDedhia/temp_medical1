@@ -43,17 +43,17 @@ class LunaColorScheme {
   static const Color darkTextSecondary = Color(0xFF888888); // Gray text
   static const Color darkTextTertiary = Color(0xFF666666);  // Darker gray text
   
-  // ☀️ **LIGHT THEME COLORS**
-  /// Light theme background colors
-  static const Color lightBackground = Color(0xFFFAFAFA);   // Off white
-  static const Color lightSurface = Color(0xFFFFFFFF);      // Pure white
-  static const Color lightCard = Color(0xFFF5F5F5);         // Light gray
-  static const Color lightBorder = Color(0xFFE0E0E0);       // Light border
-  
-  /// Light theme text colors
-  static const Color lightTextPrimary = Color(0xFF1A1A1A);   // Dark text
-  static const Color lightTextSecondary = Color(0xFF666666); // Medium gray
-  static const Color lightTextTertiary = Color(0xFF999999);  // Light gray
+  // ☀️ **LIGHT THEME COLORS**   
+/// Light theme background colors   
+static const Color lightBackground = Color(0xFFFFFFFF);   // #FFFFFF   
+static const Color lightSurface = Color(0xFFFFFFFF);      // #FFFFFF   
+static const Color lightCard = Color(0xFFFFFFFF);         // #FFFFFF   
+static const Color lightBorder = Color(0xFFD4D4D4);       // #D4D4D4      
+
+/// Light theme text colors   
+static const Color lightTextPrimary = Color(0xFF2B2B2B);   // #2B2B2B   
+static const Color lightTextSecondary = Color(0xFFB3B3B3); // #B3B3B3   
+static const Color lightTextTertiary = Color(0xFFD4D4D4);  // #D4D4D4
   
   // 🚨 **STATUS & FEEDBACK COLORS**
   /// Success states
@@ -177,17 +177,17 @@ class LunaAppTheme {
   }
   
   // ☀️ **LIGHT THEME**
-  static ThemeData get lightTheme {
+static ThemeData get lightTheme {
     return ThemeData(
       brightness: Brightness.light,
-      primaryColor: LunaColorScheme.secondaryGreen, // Slightly different for light mode
+      primaryColor: Color(0xFF2B2B2B), // Changed to dark gray
       scaffoldBackgroundColor: LunaColorScheme.lightBackground,
       cardColor: LunaColorScheme.lightCard,
       
       // Color scheme
       colorScheme: ColorScheme.light(
-        primary: LunaColorScheme.secondaryGreen,
-        secondary: LunaColorScheme.tertiaryGreen,
+        primary: Color(0xFF2B2B2B), // Changed to dark gray
+        secondary: Color(0xFFB3B3B3), // Changed to medium gray
         surface: LunaColorScheme.lightSurface,
         background: LunaColorScheme.lightBackground,
         error: LunaColorScheme.errorRed,
@@ -203,9 +203,9 @@ class LunaAppTheme {
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: LunaColorScheme.lightTextPrimary,
-        iconTheme: IconThemeData(color: LunaColorScheme.secondaryGreen),
+        iconTheme: IconThemeData(color: Color(0xFF2B2B2B)), // Changed to dark gray
         titleTextStyle: TextStyle(
-          color: LunaColorScheme.secondaryGreen,
+          color: Color(0xFF2B2B2B), // Changed to dark gray
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
@@ -223,7 +223,7 @@ class LunaAppTheme {
       // Elevated button theme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: LunaColorScheme.secondaryGreen,
+          backgroundColor: Color(0xFF2B2B2B), // Changed to dark gray
           foregroundColor: Colors.white,
           elevation: 2,
           shape: RoundedRectangleBorder(
@@ -246,35 +246,10 @@ class LunaAppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: LunaColorScheme.secondaryGreen, width: 2),
+          borderSide: BorderSide(color: Color(0xFF2B2B2B), width: 2), // Changed to dark gray
         ),
       ),
     );
-  }
-}
-
-/// 🎨 **Theme Helper Class**
-/// 
-/// Provides easy access to current theme colors and utilities.
-/// Use this class in your widgets to get theme-aware colors.
-class LunaTheme {
-  
-  /// Get colors based on current theme mode
-  static LunaColors of(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? LunaColors.dark : LunaColors.light;
-  }
-  
-  /// Check if current theme is dark
-  static bool isDark(BuildContext context) {
-    return Theme.of(context).brightness == Brightness.dark;
-  }
-  
-  /// Get primary color based on current theme
-  static Color primaryColor(BuildContext context) {
-    return isDark(context) 
-        ? LunaColorScheme.primaryGreen 
-        : LunaColorScheme.secondaryGreen;
   }
 }
 
@@ -325,9 +300,9 @@ class LunaColors {
   
   /// Light theme colors
   static const LunaColors light = LunaColors(
-    primary: LunaColorScheme.secondaryGreen,
-    secondary: LunaColorScheme.tertiaryGreen,
-    tertiary: LunaColorScheme.primaryGreen,
+    primary: Color(0xFF2B2B2B),     // #2B2B2B
+    secondary: Color(0xFFB3B3B3),   // #B3B3B3
+    tertiary: Color(0xFFD4D4D4),    // #D4D4D4
     background: LunaColorScheme.lightBackground,
     surface: LunaColorScheme.lightSurface,
     card: LunaColorScheme.lightCard,
