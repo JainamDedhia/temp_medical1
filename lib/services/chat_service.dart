@@ -4,7 +4,7 @@ import '../models/message.dart';
 
 class ChatService {
   // Replace with your ngrok URL (get this from your Python console output)
-  static const String baseUrl = 'https://b7e4-34-125-152-230.ngrok-free.app'; // Update this with your ngrok URL
+  static const String baseUrl = 'https://2ed69e906929.ngrok-free.app'; // Update this with your ngrok URL
   
   // Language codes mapping
   static const Map<String, String> languageCodes = {

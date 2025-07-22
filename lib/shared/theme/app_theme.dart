@@ -136,7 +136,7 @@ class LunaAppTheme {
       ),
       
       // Card theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: LunaColorScheme.darkCard,
         elevation: 2,
         shape: RoundedRectangleBorder(
@@ -212,7 +212,7 @@ static ThemeData get lightTheme {
       ),
       
       // Card theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: LunaColorScheme.lightCard,
         elevation: 2,
         shape: RoundedRectangleBorder(

@@ -12,6 +12,7 @@ import '../widgets/animated_card.dart';
 import '../widgets/animated_button.dart';
 import '../widgets/typing_text_animation.dart';
 import 'package:medical/theme/theme.dart';
+import 'package:medical/screens/voice_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({Key? key}) : super(key: key);
@@ -528,63 +529,71 @@ Widget _buildEmptyState(ThemeProvider themeProvider) {
   }
 
   Widget _buildInputArea(ThemeProvider themeProvider) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: themeProvider.surfaceColor,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: themeProvider.surfaceColor,
+      borderRadius: const BorderRadius.only(
+        topLeft: Radius.circular(24),
+        topRight: Radius.circular(24),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: themeProvider.primaryColor.withOpacity(0.1),
+          blurRadius: 10,
+          offset: const Offset(0, -2),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: themeProvider.primaryColor.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+      ],
+    ),
+    child: SafeArea(
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _textController,
+              style: TextStyle(color: themeProvider.textColor),
+              decoration: InputDecoration(
+                hintText: 'Describe your health concern...',
+                hintStyle: TextStyle(color: themeProvider.secondaryTextColor),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              maxLines: null,
+              textCapitalization: TextCapitalization.sentences,
+              onSubmitted: (text) => _sendMessage(text),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Updated Microphone Button - Navigate to Voice Screen
+          AnimatedCard(
+            padding: EdgeInsets.zero,
+            borderRadius: BorderRadius.circular(20),
+            child: IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const VoiceScreen(),
+                  ),
+                );
+              },
+              icon: Icon(
+                Icons.mic,
+                color: themeProvider.primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          AnimatedButton(
+            text: '',
+            width: 48,
+            height: 48,
+            icon: _isLoading ? Icons.hourglass_empty : Icons.send,
+            onPressed: _isLoading ? () {} : () => _sendMessage(_textController.text),
           ),
         ],
       ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _textController,
-                style: TextStyle(color: themeProvider.textColor),
-                decoration: InputDecoration(
-                  hintText: 'Describe your health concern...',
-                  hintStyle: TextStyle(color: themeProvider.secondaryTextColor),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                maxLines: null,
-                textCapitalization: TextCapitalization.sentences,
-                onSubmitted: (text) => _sendMessage(text),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Microphone Button
-            AnimatedCard(
-              padding: EdgeInsets.zero,
-              borderRadius: BorderRadius.circular(20),
-              child: IconButton(
-                onPressed: _listen,
-                icon: Icon(
-                  _isListening ? Icons.mic : Icons.mic_none,
-                  color: themeProvider.primaryColor,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            AnimatedButton(
-              text: '',
-              width: 48,
-              height: 48,
-              icon: _isLoading ? Icons.hourglass_empty : Icons.send,
-              onPressed: _isLoading ? () {} : () => _sendMessage(_textController.text),
-            ),
-          ],
-        ),
-      ),
-    );
-  }}
+    ),
+  );
+  }
+}
