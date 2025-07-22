@@ -349,6 +349,13 @@ class _VoiceScreenState extends State<VoiceScreen>
     _processVoiceInput(action);
   }
 
+  // Helper method to get the current theme-aware primary color
+  Color _getThemeAwarePrimaryColor(ThemeProvider themeProvider) {
+    return themeProvider.isDarkMode 
+        ? LunaColorScheme.primaryGreen 
+        : const Color(0xFF2B2B2B);
+  }
+
   @override
   void dispose() {
     _pulseController.dispose();
@@ -367,6 +374,7 @@ class _VoiceScreenState extends State<VoiceScreen>
       builder: (context, themeProvider, child) {
         final isDark = themeProvider.isDarkMode;
         final colors = isDark ? LunaColors.dark : LunaColors.light;
+        final primaryColor = _getThemeAwarePrimaryColor(themeProvider);
         
         return Scaffold(
           body: AnimatedBuilder(
@@ -517,7 +525,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                                       size: Size(280, 280),
                                       painter: RippleEffectPainter(
                                         animation: _rippleController,
-                                        color: LunaColorScheme.primaryGreen,
+                                        color: primaryColor,
                                         isListening: _isListening,
                                         isSpeaking: _isSpeaking,
                                       ),
@@ -546,7 +554,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
                                             border: Border.all(
-                                              color: LunaColorScheme.primaryGreen.withOpacity(
+                                              color: primaryColor.withOpacity(
                                                 _isListening || _isSpeaking ? 0.8 : 0.4
                                               ),
                                               width: 3,
@@ -554,7 +562,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                                             color: colors.surface.withOpacity(0.9),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: LunaColorScheme.primaryGreen.withOpacity(
+                                                color: primaryColor.withOpacity(
                                                   _isListening || _isSpeaking ? 0.3 : 0.1
                                                 ),
                                                 blurRadius: 20,
@@ -571,7 +579,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                                                 color: colors.background.withOpacity(0.1),
                                               ),
                                               child: Center(
-                                                child: _buildLunaLogo(),
+                                                child: _buildLunaLogo(primaryColor),
                                               ),
                                             ),
                                           ),
@@ -655,14 +663,19 @@ class _VoiceScreenState extends State<VoiceScreen>
                                   gradient: LinearGradient(
                                     begin: Alignment.topCenter,
                                     end: Alignment.bottomCenter,
-                                    colors: [
-                                      LunaColorScheme.primaryGreen,
-                                      LunaColorScheme.secondaryGreen
-                                    ],
+                                    colors: isDark 
+                                        ? [
+                                            LunaColorScheme.primaryGreen,
+                                            LunaColorScheme.secondaryGreen
+                                          ]
+                                        : [
+                                            const Color(0xFF2B2B2B),
+                                            const Color(0xFF404040),
+                                          ],
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: LunaColorScheme.primaryGreen.withOpacity(0.4),
+                                      color: primaryColor.withOpacity(0.4),
                                       blurRadius: 20,
                                       spreadRadius: 2,
                                     ),
@@ -728,7 +741,7 @@ class _VoiceScreenState extends State<VoiceScreen>
     );
   }
 
-  Widget _buildLunaLogo() {
+  Widget _buildLunaLogo(Color primaryColor) {
     // Try to load the asset, fallback to text if not available
     return FutureBuilder(
       future: _checkAssetExists('assets/Luna.png'),
@@ -740,23 +753,23 @@ class _VoiceScreenState extends State<VoiceScreen>
             height: 60,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
-              return _buildFallbackLogo();
+              return _buildFallbackLogo(primaryColor);
             },
           );
         } else {
-          return _buildFallbackLogo();
+          return _buildFallbackLogo(primaryColor);
         }
       },
     );
   }
 
-  Widget _buildFallbackLogo() {
+  Widget _buildFallbackLogo(Color primaryColor) {
     return Container(
       width: 60,
       height: 60,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: LunaColorScheme.primaryGreen,
+        color: primaryColor,
       ),
       child: Center(
         child: Text(
@@ -783,7 +796,7 @@ class _VoiceScreenState extends State<VoiceScreen>
   Widget _buildBottomButton({
     required IconData icon,
     required VoidCallback onTap,
-    required dynamic colors,
+    required LunaColors colors,
   }) {
     return GestureDetector(
       onTap: onTap,
