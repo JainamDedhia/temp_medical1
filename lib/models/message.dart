@@ -1,4 +1,4 @@
-enum MessageType { user, bot, emergency, welcome }
+enum MessageType { user, bot, emergency, welcome, askType }
 
 class ChatMessage {
   final String id;
@@ -9,6 +9,8 @@ class ChatMessage {
   final List<String>? steps; // For step-by-step remedies
   final String? severity;    // Severity level (e.g., Mild, Moderate, Severe)
   final String? timeLimit;   // Recommended time limit for action
+  final bool askForType;     // Whether this message is asking for medical type
+  final String? status;      // Response status from backend
 
   ChatMessage({
     required this.id,
@@ -19,13 +21,15 @@ class ChatMessage {
     this.steps,
     this.severity,
     this.timeLimit,
+    this.askForType = false,
+    this.status,
   }) : timestamp = timestamp ?? DateTime.now();
 
   // Factory constructor for welcome message
   factory ChatMessage.welcome() {
     return ChatMessage(
       id: 'welcome_${DateTime.now().millisecondsSinceEpoch}',
-      text: '🙏 Namaste! I\'m your Ayurvedic First-Aid assistant. How can I help you today?',
+      text: '🙏 Namaste! I\'m your Medical First-Aid assistant. I can provide both Ayurvedic and Allopathic remedies. How can I help you today?',
       type: MessageType.welcome,
     );
   }
@@ -46,15 +50,28 @@ class ChatMessage {
     List<String>? steps,
     String? severity,
     String? timeLimit,
+    bool askForType = false,
+    String? status,
   }) {
+    MessageType messageType;
+    if (askForType) {
+      messageType = MessageType.askType;
+    } else if (isEmergency) {
+      messageType = MessageType.emergency;
+    } else {
+      messageType = MessageType.bot;
+    }
+
     return ChatMessage(
       id: 'bot_${DateTime.now().millisecondsSinceEpoch}',
       text: text,
-      type: isEmergency ? MessageType.emergency : MessageType.bot,
+      type: messageType,
       isEmergency: isEmergency,
       steps: steps,
       severity: severity,
       timeLimit: timeLimit,
+      askForType: askForType,
+      status: status,
     );
   }
 
@@ -79,4 +96,7 @@ class ChatMessage {
 
   // Helper method to check if message has time limit info
   bool get hasTimeLimit => timeLimit != null && timeLimit!.isNotEmpty;
+
+  // Helper method to check if this message requires type selection
+  bool get requiresTypeSelection => askForType || type == MessageType.askType;
 }

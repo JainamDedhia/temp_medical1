@@ -26,6 +26,12 @@ class _VoiceScreenState extends State<VoiceScreen>
   String _botResponse = '';
   double _confidence = 1.0;
   bool _isProcessing = false;
+  
+  // Voice flow states
+  String? _selectedMode; // 'Ayurvedic' or 'Allopathic'
+  String _userHealthQuery = ''; // Store the user's health concern
+  bool _waitingForModeSelection = false;
+  bool _waitingForHealthQuery = false;
 
   // Text to Speech
   late FlutterTts _flutterTts;
@@ -81,20 +87,18 @@ class _VoiceScreenState extends State<VoiceScreen>
     'as': 'Assamese',
   };
 
-  // Quick action suggestions
-  final List<String> _quickActions = [
-    'Turn off the light',
-    'Turn on the air conditioner',
-    'What\'s the weather?',
-    'Set a timer for 5 minutes',
-  ];
-
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
     _initializeSpeech();
     _initializeTts();
+    
+    // Start with asking for health concern
+    _waitingForHealthQuery = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speak("Hello! Please describe your health concern or symptom.");
+    });
   }
 
   void _initializeAnimations() {
@@ -258,8 +262,57 @@ class _VoiceScreenState extends State<VoiceScreen>
     if (text.trim().isEmpty) return;
 
     setState(() {
+      _recognizedText = text;
+    });
+
+    // Step 1: User describes health concern
+    if (_waitingForHealthQuery) {
+      _userHealthQuery = text;
+      setState(() {
+        _waitingForHealthQuery = false;
+        _waitingForModeSelection = true;
+      });
+      
+      await _speak("Thank you. Would you like an Ayurvedic or Allopathic solution? Please say 'Ayurvedic' or 'Allopathic'.");
+      return;
+    }
+
+    // Step 2: User selects treatment mode
+    if (_waitingForModeSelection) {
+      final lowerText = text.toLowerCase();
+      
+      if (lowerText.contains('ayurvedic') || lowerText.contains('ayurveda')) {
+        _selectedMode = 'Ayurvedic';
+        setState(() {
+          _waitingForModeSelection = false;
+        });
+        await _speak("You have selected Ayurvedic treatment. Let me find the best remedy for you.");
+        await _processHealthQuery();
+      } else if (lowerText.contains('allopathic') || lowerText.contains('allopathy') || lowerText.contains('modern')) {
+        _selectedMode = 'Allopathic';
+        setState(() {
+          _waitingForModeSelection = false;
+        });
+        await _speak("You have selected Allopathic treatment. Let me find the best remedy for you.");
+        await _processHealthQuery();
+      } else {
+        await _speak("I didn't understand that. Please say 'Ayurvedic' for traditional remedies or 'Allopathic' for modern medicine.");
+      }
+      return;
+    }
+
+    // If somehow we get here without proper flow, restart
+    _resetConversation();
+  }
+
+  Future<void> _processHealthQuery() async {
+    if (_userHealthQuery.isEmpty || _selectedMode == null) {
+      _resetConversation();
+      return;
+    }
+
+    setState(() {
       _isProcessing = true;
-      _isListening = false;
     });
 
     _pulseController.stop();
@@ -270,10 +323,15 @@ class _VoiceScreenState extends State<VoiceScreen>
 
     try {
       final currentLanguage = _getCurrentLanguage();
-      final botResponse = await ChatService.sendMessage(text.trim(), currentLanguage);
+      
+      // Send the health query with selected mode to ChatService
+      final botResponse = await ChatService.sendMessage(
+        _userHealthQuery,
+        currentLanguage,
+        _selectedMode!,
+      );
       
       setState(() {
-        _recognizedText = text;
         _botResponse = botResponse.text;
       });
 
@@ -281,13 +339,29 @@ class _VoiceScreenState extends State<VoiceScreen>
       await _speak(botResponse.text);
 
     } catch (e) {
-      _showSnackBar('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+      final errorMessage = 'Sorry, I encountered an error processing your request. ${e.toString().replaceFirst('Exception: ', '')}';
+      setState(() {
+        _botResponse = errorMessage;
+      });
+      _showSnackBar(errorMessage);
       await _speak('Sorry, I encountered an error processing your request.');
     } finally {
       setState(() {
         _isProcessing = false;
       });
     }
+  }
+
+  void _resetConversation() {
+    setState(() {
+      _selectedMode = null;
+      _userHealthQuery = '';
+      _waitingForHealthQuery = true;
+      _waitingForModeSelection = false;
+      _botResponse = '';
+      _recognizedText = '';
+    });
+    _speak("Let's start over. Please describe your health concern or symptom.");
   }
 
   Future<void> _speak(String text) async {
@@ -343,10 +417,6 @@ class _VoiceScreenState extends State<VoiceScreen>
     } else if (_isListening) {
       _speech.stop();
     }
-  }
-
-  void _handleQuickAction(String action) {
-    _processVoiceInput(action);
   }
 
   // Helper method to get the current theme-aware primary color
@@ -430,53 +500,52 @@ class _VoiceScreenState extends State<VoiceScreen>
                                 textAlign: TextAlign.center,
                               ),
                             ),
-                            SizedBox(width: 48), // Balance the back button
+                            // Reset button
+                            IconButton(
+                              icon: Icon(Icons.refresh, color: colors.textPrimary),
+                              onPressed: _resetConversation,
+                            ),
                           ],
                         ),
                       ),
 
-                      // Quick action chips
-                      if (!_isListening && !_isProcessing && !_isSpeaking)
-                        Container(
-                          height: 50,
-                          margin: EdgeInsets.symmetric(vertical: 16),
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: EdgeInsets.symmetric(horizontal: 20),
-                            itemCount: _quickActions.length,
-                            itemBuilder: (context, index) {
-                              return Container(
-                                margin: EdgeInsets.only(right: 12),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () => _handleQuickAction(_quickActions[index]),
-                                    borderRadius: BorderRadius.circular(25),
-                                    child: Container(
-                                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                      decoration: BoxDecoration(
-                                        color: colors.primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(25),
-                                        border: Border.all(
-                                          color: colors.primary.withOpacity(0.3),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        _quickActions[index],
-                                        style: TextStyle(
-                                          color: colors.textPrimary,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+                      // Conversation status
+                      Container(
+                        margin: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: colors.surface.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: colors.primary.withOpacity(0.2),
                           ),
                         ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _selectedMode == null 
+                                  ? Icons.help_outline 
+                                  : Icons.check_circle_outline,
+                              color: _selectedMode == null 
+                                  ? colors.textSecondary 
+                                  : Colors.green,
+                              size: 16,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              _selectedMode == null 
+                                  ? 'No treatment selected'
+                                  : '$_selectedMode treatment selected',
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
 
                       // Greeting
                       FadeTransition(
@@ -645,10 +714,10 @@ class _VoiceScreenState extends State<VoiceScreen>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            // Chat button
+                            // Reset conversation button
                             _buildBottomButton(
-                              icon: Icons.chat_bubble_outline,
-                              onTap: () {},
+                              icon: Icons.refresh,
+                              onTap: _resetConversation,
                               colors: colors,
                             ),
 
@@ -826,6 +895,10 @@ class _VoiceScreenState extends State<VoiceScreen>
       return 'Processing your request...';
     } else if (_isSpeaking) {
       return 'Speaking response...';
+    } else if (_waitingForHealthQuery) {
+      return 'Describe your health concern';
+    } else if (_waitingForModeSelection) {
+      return 'Say "Ayurvedic" or "Allopathic"';
     } else {
       return 'Tap the Luna logo to speak with your AI assistant';
     }

@@ -29,6 +29,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   late AnimationController _typingAnimationController;
   late stt.SpeechToText _speech;
   bool _isListening = false;
+  String _selectedType = ''; // Store selected medical type
+  final List<String> _medicalTypes = ['Select Type', 'Ayurvedic', 'Allopathic'];
+  bool _waitingForTypeSelection = false; // Track if we're waiting for type selection
+
   
 Color neonGreen = Color(0xFF39FF14); // example
  Color backgroundMid = Colors.grey[200]!;
@@ -114,7 +118,7 @@ Color neonGreen = Color(0xFF39FF14); // example
         return [
           {'text': 'सिरदर्द का इलाज', 'icon': Icons.psychology, 'query': 'मुझे सिरदर्द है'},
           {'text': 'जलने का इलाज', 'icon': Icons.local_fire_department, 'query': 'जलने पर क्या करें?'},
-          {'text': 'अपच की मदद', 'icon': Icons.dining, 'query': 'अपच की समस्या है'},
+          {'text': 'अपच की मदत', 'icon': Icons.dining, 'query': 'अपच की समस्या है'},
           {'text': 'कीड़े का काटना', 'icon': Icons.pest_control, 'query': 'कीड़े काटने का इलाज'},
         ];
       case 'mr':
@@ -143,6 +147,7 @@ Color neonGreen = Color(0xFF39FF14); // example
     )..repeat();
     
     _speech = stt.SpeechToText();
+    _selectedType = _medicalTypes[0]; // Default to 'Select Type'
   }
 
   @override
@@ -152,10 +157,27 @@ Color neonGreen = Color(0xFF39FF14); // example
     _typingAnimationController.dispose();
     super.dispose();
   }
+
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty || _isLoading) return;
 
     final trimmedText = text.trim();
+    
+    // Check if user is responding to type selection request
+    if (_waitingForTypeSelection) {
+      final lowerText = trimmedText.toLowerCase();
+      if (lowerText.contains('ayurvedic') || lowerText.contains('allopathic')) {
+        // User specified type in their message, let it go through normally
+        setState(() {
+          _waitingForTypeSelection = false;
+        });
+      } else {
+        // Show quick selection buttons if they didn't specify type clearly
+        _showTypeSelectionDialog();
+        return;
+      }
+    }
+
     final userMessage = ChatMessage.user(trimmedText);
     
     setState(() {
@@ -170,11 +192,16 @@ Color neonGreen = Color(0xFF39FF14); // example
       // Get current language from LocaleProvider
       final currentLanguage = _getCurrentLanguage();
       
-      // Send message with current language from menu selection
-      final botResponse = await ChatService.sendMessage(trimmedText, currentLanguage);
+      // Send message with selected type
+      final effectiveType = (_selectedType == 'Select Type') ? '' : _selectedType;
+      final botResponse = await ChatService.sendMessage(trimmedText, currentLanguage, effectiveType);
       
       setState(() {
         _messages.add(botResponse);
+        // Check if bot is asking for type selection
+        if (botResponse.requiresTypeSelection) {
+          _waitingForTypeSelection = true;
+        }
       });
     } catch (e) {
       setState(() {
@@ -189,6 +216,81 @@ Color neonGreen = Color(0xFF39FF14); // example
       });
       _scrollToBottom();
     }
+  }
+
+  void _showTypeSelectionDialog() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: themeProvider.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.medical_services, color: themeProvider.primaryColor),
+            const SizedBox(width: 8),
+            Text(
+              'Choose Treatment Type', 
+              style: TextStyle(color: themeProvider.primaryColor),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Please select your preferred treatment type:',
+              style: TextStyle(color: themeProvider.textColor),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _waitingForTypeSelection = false;
+                        _selectedType = 'Ayurvedic';
+                      });
+                      _sendMessage('ayurvedic: ${_textController.text.isEmpty ? "Please help me" : _textController.text}');
+                    },
+                    icon: const Icon(Icons.eco),
+                    label: const Text('Ayurvedic'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeProvider.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _waitingForTypeSelection = false;
+                        _selectedType = 'Allopathic';
+                      });
+                      _sendMessage('allopathic: ${_textController.text.isEmpty ? "Please help me" : _textController.text}');
+                    },
+                    icon: const Icon(Icons.medical_information),
+                    label: const Text('Allopathic'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeProvider.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // Keep this version of _scrollToBottom
@@ -220,13 +322,13 @@ Color neonGreen = Color(0xFF39FF14); // example
             Icon(Icons.info, color: themeProvider.primaryColor),
             const SizedBox(width: 8),
             Text(
-              'About Ayurvedic First Aid', 
+              'About Medical First Aid', 
               style: TextStyle(color: themeProvider.primaryColor),
             ),
           ],
         ),
         content: Text(
-          'This app provides traditional Ayurvedic remedies for common health issues. '
+          'This app provides both traditional Ayurvedic remedies and modern Allopathic treatments for common health issues. '
           'Always consult a qualified healthcare professional for serious conditions.\n\n'
           '⚠️ This is not a substitute for professional medical advice.',
           style: TextStyle(color: themeProvider.textColor, height: 1.4),
@@ -318,7 +420,7 @@ Color neonGreen = Color(0xFF39FF14); // example
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '🌿 Ayurvedic First Aid',
+                      '🏥 Medical First Aid',
                       style: TextStyle(
                         color: themeProvider.primaryColor,
                         fontSize: 18,
@@ -326,7 +428,7 @@ Color neonGreen = Color(0xFF39FF14); // example
                       ),
                     ),
                     Text(
-                      'Natural remedies for wellness',
+                      'Ayurvedic & Allopathic remedies',
                       style: TextStyle(
                         color: themeProvider.secondaryTextColor,
                         fontSize: 12,
@@ -375,6 +477,67 @@ Color neonGreen = Color(0xFF39FF14); // example
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          // Medical type selector
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: themeProvider.primaryColor.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: themeProvider.primaryColor.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.medical_services, color: themeProvider.primaryColor, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Preference: ',
+                  style: TextStyle(color: themeProvider.primaryColor, fontSize: 14),
+                ),
+                Expanded(
+                  child: DropdownButton<String>(
+                    value: _selectedType,
+                    dropdownColor: themeProvider.cardColor,
+                    icon: Icon(Icons.arrow_drop_down, color: themeProvider.primaryColor),
+                    underline: SizedBox(),
+                    isExpanded: true,
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedType = newValue;
+                          _waitingForTypeSelection = false; // Reset waiting state
+                        });
+                      }
+                    },
+                    items: _medicalTypes.map((type) {
+                      return DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(
+                          type,
+                          style: TextStyle(
+                            color: themeProvider.textColor,
+                            fontSize: 14,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_selectedType == 'Select Type')
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                '💡 Tip: Select a type above or I\'ll ask you to choose',
+                style: TextStyle(
+                  color: themeProvider.secondaryTextColor,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -402,7 +565,7 @@ Widget _buildEmptyState(ThemeProvider themeProvider) {
           ),
           const SizedBox(height: 24),
           TypingTextAnimation(
-            text: 'Welcome to Ayurvedic First Aid',
+            text: 'Welcome to Medical First Aid',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -411,7 +574,7 @@ Widget _buildEmptyState(ThemeProvider themeProvider) {
           ),
           const SizedBox(height: 8),
           Text(
-            'Get natural remedies for common health issues',
+            'Get both traditional and modern remedies',
             style: TextStyle(
               fontSize: 16,
               color: themeProvider.secondaryTextColor,
@@ -463,9 +626,88 @@ Widget _buildEmptyState(ThemeProvider themeProvider) {
       padding: const EdgeInsets.symmetric(vertical: 16),
       itemCount: _messages.length,
       itemBuilder: (context, index) {
+        final message = _messages[index];
+        
+        // Show type selection buttons for askType messages
+        if (message.requiresTypeSelection) {
+          return Column(
+            children: [
+              MessageBubble(
+                message: message,
+                isUserMessage: false,
+                userColor: themeProvider.primaryColor,
+                botColor: themeProvider.cardColor,
+                textColor: themeProvider.textColor,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: AnimatedCard(
+                        onTap: () {
+                          setState(() {
+                            _waitingForTypeSelection = false;
+                            _selectedType = 'Ayurvedic';
+                          });
+                          _sendMessage('ayurvedic: Please help me');
+                        },
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.eco, color: themeProvider.primaryColor, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Ayurvedic',
+                              style: TextStyle(
+                                color: themeProvider.primaryColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: AnimatedCard(
+                        onTap: () {
+                          setState(() {
+                            _waitingForTypeSelection = false;
+                            _selectedType = 'Allopathic';
+                          });
+                          _sendMessage('allopathic: Please help me');
+                        },
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.medical_information, color: themeProvider.primaryColor, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Allopathic',
+                              style: TextStyle(
+                                color: themeProvider.primaryColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+        
         return MessageBubble(
-          message: _messages[index],
-          isUserMessage: _messages[index].type == MessageType.user,
+          message: message,
+          isUserMessage: message.type == MessageType.user,
           userColor: themeProvider.primaryColor,
           botColor: themeProvider.cardColor,
           textColor: themeProvider.textColor,
@@ -553,7 +795,9 @@ Widget _buildEmptyState(ThemeProvider themeProvider) {
               controller: _textController,
               style: TextStyle(color: themeProvider.textColor),
               decoration: InputDecoration(
-                hintText: 'Describe your health concern...',
+                hintText: _waitingForTypeSelection 
+                    ? 'Choose Ayurvedic or Allopathic above...'
+                    : 'Describe your health concern...',
                 hintStyle: TextStyle(color: themeProvider.secondaryTextColor),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -561,6 +805,7 @@ Widget _buildEmptyState(ThemeProvider themeProvider) {
               maxLines: null,
               textCapitalization: TextCapitalization.sentences,
               onSubmitted: (text) => _sendMessage(text),
+              enabled: !_waitingForTypeSelection, // Disable when waiting for type selection
             ),
           ),
           const SizedBox(width: 8),
@@ -589,7 +834,7 @@ Widget _buildEmptyState(ThemeProvider themeProvider) {
             width: 48,
             height: 48,
             icon: _isLoading ? Icons.hourglass_empty : Icons.send,
-            onPressed: _isLoading ? () {} : () => _sendMessage(_textController.text),
+            onPressed: (_isLoading || _waitingForTypeSelection) ? () {} : () => _sendMessage(_textController.text),
           ),
         ],
       ),

@@ -4,7 +4,7 @@ import '../models/message.dart';
 
 class ChatService {
   // Replace with your ngrok URL (get this from your Python console output)
-  static const String baseUrl = 'https://2ed69e906929.ngrok-free.app'; // Update this with your ngrok URL
+  static const String baseUrl = 'https://cad9fb7dba36.ngrok-free.app'; // Update this with your ngrok URL
   
   // Language codes mapping
   static const Map<String, String> languageCodes = {
@@ -22,15 +22,28 @@ class ChatService {
     'Assamese': 'asm_Beng',
   };
   
-  static Future<ChatMessage> sendMessage(String userMessage, String language) async {
+  static Future<ChatMessage> sendMessage(String userMessage, String language, String medicalType) async {
     try {
       final languageCode = languageCodes[language] ?? 'eng_Latn';
+
+      // Format message based on medical type selection
+      String formattedMessage;
+      if (medicalType.isNotEmpty && medicalType != 'Select Type') {
+        // Send type as prefix when selected
+        formattedMessage = "${medicalType.toLowerCase()}: $userMessage";
+      } else {
+        // Send message without type - backend will ask for preference
+        formattedMessage = userMessage;
+      }
       
       final response = await http.post(
         Uri.parse('$baseUrl/chatbot'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true', // Skip ngrok browser warning
+        },
         body: jsonEncode({
-          'message': userMessage,
+          'message': formattedMessage,
           'language': languageCode,
         }),
       );
@@ -44,6 +57,8 @@ class ChatService {
           final responseText = responseData['response'] ?? 'No response text';
           final severity = responseData['severity'];
           final timeLimit = responseData['time_limit'];
+          final status = responseData['status'];
+          final askForType = responseData['ask_for_type'] ?? false;
           
           bool isEmergency = _isEmergencyResponse(responseText) || 
                             (severity?.toLowerCase() == 'severe');
@@ -53,6 +68,8 @@ class ChatService {
             isEmergency: isEmergency,
             severity: severity,
             timeLimit: timeLimit,
+            askForType: askForType,
+            status: status,
           );
         }
       } else {
